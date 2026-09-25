@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2b5bbf">
+<title>🎯 课堂点名</title>
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{
+  --main:#2b5bbf; --main-dark:#1f448f; --bg:#eef2f8; --card:#fff;
+  --ink:#111; --sub:#666; --line:#e4e8f0; --accent:#ff8c00;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  background:var(--bg);color:var(--ink);
+  letter-spacing:.03em;
+  display:flex;flex-direction:column;min-height:100vh;
+}
+header{
+  background:linear-gradient(135deg,var(--main),var(--main-dark));
+  color:#fff;padding:14px 16px 12px;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+  position:sticky;top:0;z-index:20;
+}
+header .top{display:flex;align-items:center;justify-content:space-between;}
+header h1{font-size:20px;font-weight:700;letter-spacing:.08em;}
+header .class-sel select{
+  font-size:16px;padding:6px 10px;border:none;border-radius:8px;
+  background:#fff;color:var(--main-dark);font-weight:600;
+}
+main{flex:1;overflow-y:auto;padding:14px 14px 90px;}
+.panel{display:none;}
+.panel.active{display:block;}
+.card{
+  background:var(--card);border-radius:14px;padding:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:14px;
+}
+.card h2{font-size:16px;color:var(--main-dark);margin-bottom:10px;letter-spacing:.05em;}
+.btn{
+  border:none;border-radius:12px;font-weight:700;cursor:pointer;
+  padding:16px 20px;font-size:18px;letter-spacing:.06em;
+  transition:transform .06s,opacity .15s;
+}
+.btn:active{transform:scale(.96);}
+.btn-main{background:linear-gradient(135deg,var(--main),var(--main-dark));color:#fff;width:100%;}
+.btn-big{font-size:22px;padding:22px;}
+.btn-ghost{background:#fff;color:var(--main-dark);border:2px solid var(--main);}
+.btn-accent{background:var(--accent);color:#fff;}
+.btn-green{background:#1fa855;color:#fff;}
+.btn-red{background:#e04040;color:#fff;}
+.btn-sm{padding:12px 14px;font-size:16px;border-radius:10px;}
+
+/* 模式切换 */
+.mode-switch{display:flex;gap:10px;margin-bottom:14px;background:var(--card);padding:6px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.mode-b{flex:1;border:none;background:none;padding:12px;font-size:17px;font-weight:700;border-radius:9px;color:var(--sub);cursor:pointer;letter-spacing:.04em;}
+.mode-b.active{background:var(--main);color:#fff;}
+
+/* 点名展示 */
+.display-box{
+  background:var(--card);border-radius:16px;padding:24px 14px;margin-bottom:14px;
+  text-align:center;min-height:200px;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;box-shadow:0 1px 5px rgba(0,0,0,.08);
+}
+.display-box .label{font-size:15px;color:var(--sub);letter-spacing:.2em;margin-bottom:12px;}
+#nameShow{
+  font-size:96px;font-weight:800;color:var(--ink);letter-spacing:.06em;
+  line-height:1.25;word-break:break-all;min-height:1.25em;
+  transition:color .2s;
+}
+#nameShow.picked{color:var(--main-dark);text-shadow:0 2px 10px rgba(43,91,191,.25);}
+#nameShow.warn{color:var(--accent);}
+.sub-info{font-size:16px;color:var(--sub);margin-top:8px;min-height:1.4em;}
+.score-row{display:flex;gap:10px;margin-top:14px;}
+.score-row .btn{flex:1;}
+.score-note{font-size:14px;color:var(--sub);text-align:center;margin-top:8px;}
+.sound-hint{font-size:14px;color:var(--main);text-align:center;margin-top:6px;}
+
+/* 积分榜 */
+.rank-row{
+  display:flex;align-items:center;padding:12px 6px;border-bottom:1px solid var(--line);
+  font-size:19px;
+}
+.rank-row:last-child{border-bottom:none;}
+.rank-no{width:38px;text-align:center;font-weight:800;color:var(--sub);flex-shrink:0;}
+.rank-no.g1{color:#f0b400;} .rank-no.g2{color:#a8a8b8;} .rank-no.g3{color:#c8783c;}
+.rank-name{flex:1;letter-spacing:.12em;font-weight:600;}
+.rank-score{font-weight:800;font-size:22px;color:var(--main-dark);letter-spacing:.04em;}
+
+/* 管理 */
+.input{
+  width:100%;padding:14px;font-size:18px;border:2px solid var(--line);
+  border-radius:10px;letter-spacing:.05em;color:var(--ink);
+}
+textarea.input{resize:none;min-height:120px;line-height:1.7;}
+.stu-list{margin-top:10px;max-height:260px;overflow-y:auto;}
+.stu-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 6px;border-bottom:1px solid var(--line);font-size:17px;letter-spacing:.08em;
+}
+.stu-item .right{display:flex;align-items:center;gap:10px;}
+.stu-item .b-del{color:#e04040;font-weight:700;padding:6px 10px;border:none;background:none;font-size:18px;}
+.stu-item .b-edit{color:var(--main);font-weight:700;padding:6px 10px;border:none;background:var(--bg);border-radius:8px;font-size:15px;}
+.editInput{width:100%;font-size:17px;padding:8px 10px;border:2px solid var(--main);border-radius:8px;letter-spacing:.08em;color:var(--ink);}
+
+/* 计时器 */
+.timer-display{font-size:88px;font-weight:800;letter-spacing:.04em;text-align:center;color:var(--main-dark);font-variant-numeric:tabular-nums;}
+.timer-display.warn{color:var(--accent);}
+.timer-set{display:flex;align-items:center;justify-content:center;gap:16px;margin:14px 0;}
+.timer-set .ste{font-size:34px;width:58px;height:58px;border-radius:14px;border:none;background:var(--main);color:#fff;cursor:pointer;}
+.timer-set .val{font-size:30px;font-weight:700;min-width:120px;text-align:center;}
+.timer-controls{display:flex;gap:10px;margin-top:8px;}
+.timer-controls .btn{flex:1;}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+.presets .btn-sm{background:#eef2f8;color:var(--main-dark);}
+
+/* 底部导航 */
+nav{
+  position:fixed;bottom:0;left:0;right:0;height:64px;background:#fff;
+  border-top:1px solid var(--line);display:flex;z-index:30;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav .navi{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  border:none;background:none;color:#999;font-size:13px;cursor:pointer;letter-spacing:.02em;
+}
+nav .navi .ic{font-size:22px;margin-bottom:2px;}
+nav .navi.active{color:var(--main-dark);font-weight:700;}
+
+/* 设置字号 */
+.size-line{display:flex;align-items:center;gap:12px;margin-top:8px;}
+.size-line input[type=range]{flex:1;}
+.size-line span{font-size:16px;color:var(--sub);min-width:64px;text-align:right;}
+
+/* 语音提示动画 */
+.flash-ring{animation:ring .5s ease infinite alternate;}
+@keyframes ring{from{transform:scale(1);}to{transform:scale(1.06);}}
+.hidden{display:none!important;}
+.empty-tip{text-align:center;color:var(--sub);font-size:16px;padding:14px 0;}
+.toast{
+  position:fixed;left:50%;bottom:90px;transform:translateX(-50%);
+  background:rgba(0,0,0,.82);color:#fff;padding:12px 20px;border-radius:10px;
+  font-size:16px;z-index:50;opacity:0;transition:opacity .25s;pointer-events:none;max-width:86vw;text-align:center;
+}
+.toast.show{opacity:1;}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>🎯 课堂点名</h1>
+    <div class="class-sel">
+      <select id="classSel"></select>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 点 名 -->
+  <section id="panel-pick" class="panel active">
+    <div class="mode-switch" id="modeSwitch">
+      <button class="mode-b active" data-mode="pick">🗳 课堂点名</button>
+      <button class="mode-b" data-mode="ask">🙋 随机提问</button>
+    </div>
+    <div class="display-box">
+      <div class="label">— 请 点 名 —</div>
+      <div id="nameShow">?</div>
+      <div class="sub-info" id="pickInfo"></div>
+    </div>
+
+    <button class="btn btn-main btn-big" id="btnPick">🎲 开 始 点 名</button>
+
+    <div class="score-row hidden" id="scoreRow">
+      <button class="btn btn-green" id="btnScore1">➕ 加 1 分</button>
+      <button class="btn btn-accent" id="btnScore2">➕➕ 加 2 分</button>
+      <button class="btn btn-red btn-sm" id="btnMinus">➖ 减 1 分</button>
+    </div>
+    <div class="score-note hidden" id="scoreNote"></div>
+    <div class="sound-hint" id="soundHint"></div>
+  </section>
+
+  <!-- 积分榜 -->
+  <section id="panel-rank" class="panel">
+    <div class="card">
+      <h2>🏆 积分榜</h2>
+      <button class="btn btn-ghost btn-sm" id="btnResetScores" style="width:100%;margin-bottom:10px;">↺ 清零本班积分</button>
+      <div id="rankList"></div>
+    </div>
+  </section>
+
+  <!-- 计时器 -->
+  <section id="panel-timer" class="panel">
+    <div class="card">
+      <h2>⏱ 课堂计时</h2>
+      <div class="timer-display" id="timerShow">00:00</div>
+      <div class="timer-set">
+        <button class="ste" id="tMinus">−</button>
+        <div class="val" id="timerVal">5 分</div>
+        <button class="ste" id="tPlus">＋</button>
+      </div>
+      <div class="presets" id="presets"></div>
+      <div class="timer-controls">
+        <button class="btn btn-green" id="tStart">▶ 开始</button>
+        <button class="btn btn-ghost" id="tReset">↺ 重置</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 管 理 -->
+  <section id="panel-manage" class="panel">
+    <div class="card">
+      <h2>🏫 班级管理</h2>
+      <div style="display:flex;gap:8px;">
+        <input class="input" id="clsNameInput" placeholder="当前班级名称" style="flex:1;">
+        <button class="btn btn-green btn-sm" id="btnRenameClass">改名</button>
+      </div>
+      <button class="btn btn-ghost" id="btnAddClass" style="width:100%;margin-top:10px;">＋ 添加新班级</button>
+    </div>
+    <div class="card">
+      <h2>👥 班级学生（<span id="stuCount">0</span>人）</h2>
+      <button class="btn btn-main" id="btnAddStu" style="margin-bottom:10px;">＋ 添加单个学生</button>
+      <div class="hidden" id="addSingle">
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input class="input" id="stuNameInput" placeholder="输入学生姓名" style="flex:1;" maxlength="20">
+          <button class="btn btn-green" id="btnAddStuGo" style="padding:0 18px;">添加</button>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btnBatch" style="width:100%;margin-bottom:10px;">📋 批量导入（每行一个姓名）</button>
+      <div class="hidden" id="batchBox">
+        <textarea class="input" id="batchText" placeholder="张三&#10;李四&#10;王五&#10;..."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-green" id="btnBatchGo" style="flex:3;">导入</button>
+          <button class="btn btn-ghost btn-sm" id="btnBatchCancel" style="flex:1;">取消</button>
+        </div>
+      </div>
+      <div class="stu-list" id="stuList"></div>
+    </div>
+    <div class="card">
+      <h2>⚙️ 设置</h2>
+      <div class="size-line">
+        <span>姓名字号</span>
+        <input type="range" id="nameSize" min="40" max="160" value="96">
+        <span id="nameSizeVal">96</span>
+      </div>
+      <div class="size-line" style="margin-top:6px;">
+        <span>语音播报</span>
+        <button class="btn btn-sm" id="btnSound" style="background:#e8f5ec;color:#1fa855;border:1px solid #1fa855;">🔊 声音：开</button>
+      </div>
+      <div class="size-line" style="margin-top:10px;">
+        <span>测试语音</span>
+        <button class="btn btn-sm" id="btnTestVoice" style="background:#eef2f8;color:var(--main-dark);flex:1;">点我听声音</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button class="navi active" data-panel="pick"><span class="ic">🎲</span>点名</button>
+  <button class="navi" data-panel="rank"><span class="ic">🏆</span>积分榜</button>
+  <button class="navi" data-panel="timer"><span class="ic">⏱</span>计时</button>
+  <button class="navi" data-panel="manage"><span class="ic">⚙️</span>管理</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  var LS_CLASSES='cd_classes', LS_CUR='cd_cur',
+      classes=[], cur=0, pool=[], poolIdx=0,
+      rolling=null, curPicked=null,
+      mode='pick',
+      sound=true, tim=0, timerSet=5, timerId=null, timerRemain=0, timerTotal=0;
+
+  /* ---------- 存储 ---------- */
+  function saveClasses(){ localStorage.setItem(LS_CLASSES, JSON.stringify(classes)); }
+  function loadClasses(){
+    try{ classes=JSON.parse(localStorage.getItem(LS_CLASSES))||[]; }
+    catch(e){ classes=[]; }
+  }
+  function makeStu(names){ return names.map(function(n,i){ return {id:i+1,name:n,score:0}; }); }
+  function seed(){
+    if(classes.length===0 || (!localStorage.getItem('cd_seeded') && clsEmpty(classes))){
+      classes=[
+        {id:1,name:'262班',students:makeStu([
+          '陆燕绮','覃炳鑫','韦炳茂','陈方阳','郑浩宇','黄振豪','韦奕彬','农宇俊','粟大杰','黄荣琳','陈业智','郑登锌','陆克辉','陆琼','王道标','蒙帮云','陈树桦','韦华溢','郑淑桦','陆金滟','农晓彤','李洪玮','韦云芳','农雪晴','梁晓雨','黄晓菲','农柠瑜','覃炳兴','黄智椽','韦奕熙','黄秋兰','覃梓涵','覃昱铨','农贵棋','覃雨锌','黄静怡','农嘉铌','陆秀榕','杨美璐','黄钰馨','黄若琳','韦铁禧','黄灿锫','陈棋荣','农先潮','周雪娇','李欣妮','韦雪婷','周一凡','韦世鑫','徐甬','孙福来','粟秋杨','农蜜','陆建榕','陆万鑫','粟文霖','黄晓慧','覃静怡','黄增钏','周昌辉','陈文熠','赖民颖','赖东眉','覃云汐','陆晓慧','杨蕙薪','覃翠萍'
+        ])},
+        {id:2,name:'266班',students:makeStu([
+          '农立达','韦巧坩','黄芯','蒙若冉','陈杰荣','粟建鑫','郑雨霏','覃炳权','周奕薪','沈圣年','农继杰','蒙权彦','陈咸政','郑登林','孙玉丰','黄之涵','蒙金秀','黄佳儿','陆美铃','杨海梅','陈英杰','陆建锶','韦运棋','陈权荣','赖静茹','覃斯敏','陆慧桐','黄树淇','张晓财','陈锰荣','谭南晰','谢增洋','农永杭','庞世业','黄思渝','李美锌','陈冬怡','陈诗琪','林梦琪','陆小霏','陈宣锦','覃荣骏','郑铌','韦海渟','韦语晴','黄增家','黄卫松','周植','陈肇峰','陈业煊','邓万标','哏文静','黄雅思','黄思雯','陈东荣','覃梓霖','覃永树','屈慧璇','覃婉欣','农贵楠','张志金','韦旺','陆雨轩','郑欣洁','郑晓霏','韦世福','覃艾娜','黄芯源','陆世明'
+        ])}
+      ];
+      localStorage.setItem('cd_seeded','1');
+      saveClasses();
+    }
+    cur=parseInt(localStorage.getItem(LS_CUR)||0,10);
+    if(cur<0||cur>=classes.length) cur=0;
+  }
+  function clsEmpty(cls){ for(var i=0;i<cls.length;i++){ if(cls[i].students.length>0) return false; } return true; }
+  function curCls(){ return classes[cur]; }
+  function saveCur(){ localStorage.setItem(LS_CUR, cur); }
+
+  /* ---------- 语音 ---------- */
+  function buzz(ms){
+    ms=ms||120;
+    if(window.NativeTTS && window.NativeTTS.vibrate){ try{ window.NativeTTS.vibrate(ms); return; }catch(e){} }
+    if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} }
+  }
+  function speak(text){
+    if(!sound) return;
+    // App 内：优先用原生 TTS（WebView 不支持 speechSynthesis）
+    if(window.NativeTTS && window.NativeTTS.speak){
+      try{ window.NativeTTS.speak(text); return; }catch(e){}
+    }
+    if(!('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      var u=new SpeechSynthesisUtterance(text);
+      u.lang='zh-CN'; u.rate=0.85; u.pitch=1.05;
+      var vs=speechSynthesis.getVoices();
+      for(var i=0;i<vs.length;i++){
+        if((vs[i].lang||'').toLowerCase().indexOf('zh')===0){ u.voice=vs[i]; break; }
+      }
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  if('speechSynthesis'in window){
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged=function(){ speechSynthesis.getVoices(); };
+  }
+
+  /* ---------- DOM ---------- */
+  var $=function(id){ return document.getElementById(id); };
+  var nameShow=$('nameShow'), pickInfo=$('pickInfo'), scoreRow=$('scoreRow'),
+      scoreNote=$('scoreNote'), soundHint=$('soundHint'), classSel=$('classSel'),
+      rankList=$('rankList'), stuList=$('stuList'), stuCount=$('stuCount'),
+      timerShow=$('timerShow'), timerVal=$('timerVal'), presets=$('presets'),
+      toastEl=$('toast'), toastTimer=null;
+
+  function toast(msg){
+    toastEl.textContent=msg; toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(function(){ toastEl.classList.remove('show'); },1800);
+  }
+
+  /* ---------- 班级选择 ---------- */
+  function renderClassSel(){
+    var html='';
+    for(var i=0;i<classes.length;i++){
+      html+='<option value="'+i+'"'+(i===cur?' selected':'')+'>'+classes[i].name+'</option>';
+    }
+    classSel.innerHTML=html;
+  }
+  classSel.onchange=function(){
+    cur=parseInt(this.value,10); saveCur(); resetPool(); renderClassSel();
+    renderStuList(); renderRank(); updatePickState(); fillClsInput();
+  };
+
+  /* ······ 班级管理 ······ */
+  function fillClsInput(){ var c=curCls(); if(c) $('clsNameInput').value=c.name; }
+  $('btnRenameClass').onclick=function(){
+    var n=$('clsNameInput').value.trim();
+    if(!n){ toast('请输入班名'); return; }
+    classes[cur].name=n; saveClasses(); renderClassSel();
+    toast('已改名：'+n);
+  };
+  $('btnAddClass').onclick=function(){
+    classes.push({id:Date.now(),name:'新班级',students:[]});
+    cur=classes.length-1; saveCur(); saveClasses();
+    renderClassSel(); renderStuList(); renderRank(); resetPool();
+    renderMode(); updatePickState(); fillClsInput();
+    toast('已添加新班级');
+  };
+
+  /* ······················· */
+  /* ---------- 学生显示 ---------- */
+  function renderStuList(){
+    var c=curCls(); if(!c) return;
+    stuCount.textContent=c.students.length;
+    if(c.students.length===0){
+      stuList.innerHTML='<div class="empty-tip">还没有学生，请添加或批量导入</div>'; return;
+    }
+    var html='';
+    for(var i=0;i<c.students.length;i++){
+      var s=c.students[i];
+      html+='<div class="stu-item" data-id="'+s.id+'">'+
+            '<span class="nameWrap">'+esc(s.name)+'</span>'+
+            '<span class="right"><span class="sc" style="color:var(--main-dark);font-weight:700;">'+s.score+'分</span>'+
+            '<button class="b-edit">改</button>'+
+            '<button class="b-del">✕</button></span></div>';
+    }
+    stuList.innerHTML=html;
+    var rows=stuList.querySelectorAll('.stu-item');
+    var commitRow=function(row){
+      if(!row.dt||row.dt!=='1') return;
+      var inp=row.querySelector('.editInput'); if(!inp) return;
+      var v=inp.value.trim();
+      var id=parseInt(row.getAttribute('data-id'),10);
+      if(!v){ toast('姓名不能为空'); return; }
+      var cc=curCls();
+      for(var i=0;i<cc.students.length;i++){
+        if(cc.students[i].id===id){ cc.students[i].name=v; break; }
+      }
+      row.dt='';
+      saveClasses(); renderStuList(); resetPool(); renderRank();
+      toast('已改名');
+    };
+    for(var r=0;r<rows.length;r++){
+      (function(row){
+        var id=parseInt(row.getAttribute('data-id'),10);
+        row.querySelector('.b-edit').onclick=function(){
+          if(row.dt==='1'){ commitRow(row); return; }
+          var cc=curCls(); var curName='';
+          for(var t=0;t<cc.students.length;t++){ if(cc.students[t].id===id){ curName=cc.students[t].name; break; } }
+          var wrap=row.querySelector('.nameWrap');
+          var inp=document.createElement('input');
+          inp.className='editInput'; inp.maxLength=20; inp.value=curName;
+          wrap.innerHTML=''; wrap.appendChild(inp);
+          row.dt='1';
+          this.textContent='存';
+          row.querySelector('.b-del').textContent='取消';
+          inp.focus();
+          inp.onkeydown=function(e){ if(e.key==='Enter'){ commitRow(row); } };
+        };
+        row.querySelector('.b-del').onclick=function(){
+          if(row.dt==='1'){ renderStuList(); return; }
+          if(confirm('确定删除该学生？')){
+            var cc=curCls();
+            for(var k=0;k<cc.students.length;k++){
+              if(cc.students[k].id===id){ cc.students.splice(k,1); break; }
+            }
+            saveClasses(); renderStuList(); resetPool(); renderRank();
+            toast('已删除');
+          }
+        };
+      })(rows[r]);
+    }
+  }
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ---------- 添加 ---------- */
+  $('btnAddStu').onclick=function(){
+    var box=$('addSingle'); box.classList.toggle('hidden');
+    if(!box.classList.contains('hidden')) $('stuNameInput').focus();
+  };
+  $('btnAddStuGo').onclick=function(){
+    var v=$('stuNameInput').value.trim();
+    if(!v){ toast('请输入姓名'); return; }
+    addStudents([v]); $('stuNameInput').value=''; $('addSingle').classList.add('hidden');
+  };
+  $('stuNameInput').onkeydown=function(e){ if(e.key==='Enter') $('btnAddStuGo').click(); };
+  $('btnBatch').onclick=function(){ $('batchBox').classList.toggle('hidden'); };
+  $('btnBatchCancel').onclick=function(){ $('batchBox').classList.add('hidden'); };
+  $('btnBatchGo').onclick=function(){
+    var txt=$('batchText').value.replace(/[，,、\s]+/g,'\n');
+    var names=txt.split('\n').map(function(x){return x.trim();}).filter(function(x){return x;});
+    if(names.length===0){ toast('未检测到姓名'); return; }
+    addStudents(names);
+    $('batchText').value=''; $('batchBox').classList.add('hidden');
+    toast('已导入 '+names.length+' 个学生');
+  };
+  function addStudents(names){
+    var c=curCls(); var maxId=0;
+    for(var i=0;i<c.students.length;i++){ if(c.students[i].id>maxId)maxId=c.students[i].id; }
+    var added=0;
+    for(var j=0;j<names.length;j++){
+      var n=names[j];
+      var dup=false;
+      for(var k=0;k<c.students.length;k++){
+        if(c.students[k].name===n){ dup=true; break; }
+      }
+      if(dup) continue;
+      maxId++; c.students.push({id:maxId,name:n,score:0});
+      added++;
+    }
+    if(added>0){ saveClasses(); renderStuList(); resetPool(); renderRank(); }
+  }
+
+  /* ---------- 点名池（机会均等） ---------- */
+  function resetPool(){
+    pool=[]; poolIdx=0;
+    var c=curCls(); if(!c||c.students.length===0) return;
+    pool=c.students.slice();
+    shuffle(pool);
+  }
+  function shuffle(a){
+    for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i];a[i]=a[j];a[j]=t; }
+    return a;
+  }
+  function nextOne(){
+    if(!pool||poolIdx>=pool.length) resetPool();
+    if(pool.length===0) return null;
+    var s=pool[poolIdx]; poolIdx++;
+    return s;
+  }
+
+  /* ---------- 点名 ---------- */
+  var nameSize=parseInt(localStorage.getItem('cd_size')||'96',10);
+  function applySize(){ nameShow.style.fontSize=nameSize+'px'; $('nameSize').value=nameSize; $('nameSizeVal').textContent=nameSize; }
+  $('nameSize').oninput=function(){
+    nameSize=parseInt(this.value,10);
+    $('nameSizeVal').textContent=nameSize;
+    localStorage.setItem('cd_size',nameSize); applySize();
+  };
+
+  function updatePickState(){
+    var c=curCls();
+    var has=c&&c.students.length>0;
+    $('btnPick').disabled=!has;
+    $('btnPick').style.opacity=has?'1':'.4';
+  }
+  /* 模式切换 */
+  function renderMode(){
+    var bs=document.querySelectorAll('.mode-b');
+    for(var i=0;i<bs.length;i++){
+      bs[i].classList.toggle('active', bs[i].getAttribute('data-mode')===mode);
+    }
+    // 重置按钮文案与展示
+    $('btnPick').textContent = (mode==='ask') ? '🙋 开始提问' : '🎲 开 始 点 名';
+    scoreRow.classList.add('hidden');
+    scoreNote.textContent='';
+    if(!rolling && pool && pool.length>0){
+      // 预留下一个
+    }
+  }
+  $('modeSwitch').onclick=function(e){
+    var b=e.target.closest('.mode-b');
+    if(!b) return;
+    var m=b.getAttribute('data-mode');
+    if(m===mode) return;
+    if(rolling){ return; }
+    mode=m;
+    nameShow.classList.remove('picked'); nameShow.classList.remove('warn');
+    nameShow.textContent='?'; pickInfo.textContent='';
+    scoreRow.classList.add('hidden'); scoreNote.textContent='';
+    renderMode();
+  };
+  $('btnPick').onclick=function(){
+    if(this.disabled){ toast('请先添加学生'); return; }
+    if(rolling){ stopRoll(); return; }
+    var target=nextOne();
+    if(!target){ toast('请先添加学生'); return; }
+    startRoll(target);
+  };
+  var rollTimer=null;
+  function startRoll(target){
+    nameShow.classList.remove('warn'); nameShow.classList.remove('picked');
+    scoreRow.classList.add('hidden');
+    pickInfo.textContent='抽 取 中 …';
+    var c=curCls(); var arr=c.students.slice();
+    var end=Date.now()+1800+Math.random()*900;
+    rolling=true;
+    $('btnPick').textContent='⏹ 停 止';
+    rollTimer=setInterval(function(){
+      if(Date.now()>=end){ clearInterval(rollTimer); finishRoll(target); return; }
+      var i=Math.floor(Math.random()*arr.length);
+      nameShow.textContent=arr[i].name;
+    },70);
+  }
+  function stopRoll(){
+    if(rollTimer) clearInterval(rollTimer);
+    // 随机停到一个
+    var c=curCls(); var arr=c.students.slice();
+    if(arr.length){ var i=Math.floor(Math.random()*arr.length); finishRoll(arr[i]); }
+  }
+  function finishRoll(s){
+    rolling=false; curPicked=s;
+    nameShow.classList.add('picked');
+    nameShow.textContent=s.name;
+    speak(s.name);
+    buzz(150);
+    var left=(pool.length-poolIdx);
+    if(mode==='ask'){
+      // 随机提问模式：只抽人，不记分
+      $('btnPick').textContent='🙋 继续提问';
+      scoreRow.classList.add('hidden');
+      scoreNote.textContent='';
+      pickInfo.textContent='已抽 '+poolIdx+' / '+pool.length+'  ·  抽完自动洗牌，确保不重复';
+    }else{
+      // 课堂点名模式：打分
+      $('btnPick').textContent='🎲 点 下 一 个';
+      pickInfo.textContent='当前积分：'+s.score+' 分  ·  本轮回合 '+poolIdx+'/'+pool.length;
+      scoreRow.classList.remove('hidden');
+      scoreNote.textContent='给「'+s.name+'」打分（1~2分）';
+    }
+  }
+
+  /* ---------- 打分 ---------- */
+  $('btnScore1').onclick=function(){ score(1); };
+  $('btnScore2').onclick=function(){ score(2); };
+  $('btnMinus').onclick=function(){
+    if(!curPicked){ return; }
+    var c=curCls();
+    for(var i=0;i<c.students.length;i++){
+      if(c.students[i].id===curPicked.id){
+        if(c.students[i].score>0) c.students[i].score-=1;
+        curPicked=c.students[i];
+        break;
+      }
+    }
+    saveClasses(); renderStuList(); renderRank();
+    pickInfo.textContent='当前积分：'+curPicked.score+' 分';
+  };
+  function score(p){
+    if(!curPicked) return;
+    var c=curCls();
+    for(var i=0;i<c.students.length;i++){
+      if(c.students[i].id===curPicked.id){
+        c.students[i].score+=p;
+        curPicked=c.students[i];
+        break;
+      }
+    }
+    saveClasses(); renderStuList(); renderRank();
+    pickInfo.textContent='✅ '+curPicked.name+' +'+p+' 分，当前共 '+curPicked.score+' 分';
+    scoreRow.classList.add('hidden');
+    scoreNote.textContent='继续点下一个「'+curPicked.name+'」可以加分，或开始下一轮';
+    setTimeout(function(){ scoreNote.textContent=''; },4000);
+  }
+
+  /* ---------- 积分榜 ---------- */
+  var resetArm=false, resetTimer=null;
+  $('btnResetScores').onclick=function(){
+    var c=curCls();
+    if(!c||c.students.length===0){ toast('暂无学生'); return; }
+    if(!resetArm){
+      resetArm=true;
+      this.textContent='⚠️ 再点一次确认清零';
+      this.style.background='#e04040'; this.style.color='#fff';
+      clearTimeout(resetTimer);
+      resetTimer=setTimeout(function(){ resetArm=false; resetScoresBtn(); },4000);
+      return;
+    }
+    clearTimeout(resetTimer); resetArm=false;
+    for(var i=0;i<c.students.length;i++) c.students[i].score=0;
+    saveClasses(); renderRank(); renderStuList();
+    resetScoresBtn(); toast('已清零「'+c.name+'」积分');
+  };
+  function resetScoresBtn(){
+    var b=$('btnResetScores'); b.textContent='↺ 清零本班积分';
+    b.style.background=''; b.style.color='';
+  }
+  function renderRank(){
+    var c=curCls(); if(!c){ rankList.innerHTML=''; return; }
+    if(c.students.length===0){ rankList.innerHTML='<div class="empty-tip">暂无学生</div>'; return; }
+    var arr=c.students.slice().sort(function(a,b){ return b.score-a.score; });
+    var html='';
+    for(var i=0;i<arr.length;i++){
+      var g=''; var no=i+1;
+      if(no===1)g='g1'; else if(no===2)g='g2'; else if(no===3)g='g3';
+      html+='<div class="rank-row"><span class="rank-no '+g+'">'+no+'</span>'+
+            '<span class="rank-name">'+esc(arr[i].name)+'</span>'+
+            '<span class="rank-score">'+arr[i].score+'</span></div>';
+    }
+    rankList.innerHTML=html;
+  }
+
+  /* ---------- 计时器 ---------- */
+  var PRESETS=[1,2,3,5,8,10,15,20,30];
+  for(var pi=0;pi<PRESETS.length;pi++){
+    (function(m){
+      var b=document.createElement('button');
+      b.className='btn btn-sm'; b.textContent=m+' 分';
+      b.onclick=function(){ setTimer(m); };
+      presets.appendChild(b);
+    })(PRESETS[pi]);
+  }
+  function setTimer(m){
+    timerSet=Math.max(0,Math.min(30,m));
+    if(timerId) return; // 运行中不修改
+    timerVal.textContent=timerSet+' 分';
+    renderTimer(0);
+  }
+  $('tMinus').onclick=function(){ setTimer(timerSet-1); };
+  $('tPlus').onclick=function(){ setTimer(timerSet+1); };
+  $('tStart').onclick=function(){
+    if(timerId){ // 暂停
+      clearInterval(timerId); timerId=null; $('tStart').textContent='▶ 继续';
+      return;
+    }
+    if(timerTotal===0){
+      timerTotal=timerSet*60; timerRemain=timerTotal;
+      if(timerTotal===0){ toast('请先选择时长'); return; }
+    }
+    if(timerTotal>0&&timerRemain===0){ return; }
+    $('tStart').textContent='⏸ 暂停';
+    timerId=setInterval(function(){
+      timerRemain--;
+      if(timerRemain<=0){
+        timerRemain=0; clearInterval(timerId); timerId=null;
+        renderTimer(timerRemain); timerShow.classList.add('warn');
+        $('tStart').textContent='▶ 开始';
+        speak('时间到');
+        buzz(400);
+        toast('⏰ 时间到！'); flash(); flash();
+        return;
+      }
+      renderTimer(timerRemain);
+      // 最后时刻语音：只在关键秒点播，避免“还剩…还剩…”连串和卡顿
+      if(timerRemain===10){ timerShow.classList.add('warn'); speak('还剩十秒'); buzz(80); }
+      else if(timerRemain===5){ speak('还剩五秒'); buzz(80); }
+      else if(timerRemain===3){ speak('还剩三秒'); buzz(80); }
+      else if(timerRemain===2){ speak('还剩两秒'); buzz(80); }
+      // 最后一秒不再单独播，以免与“时间到”粘连卡顿
+    },1000);
+  };
+  $('tReset').onclick=function(){
+    if(timerId){ clearInterval(timerId); timerId=null; }
+    timerRemain=0; timerTotal=0;
+    $('tStart').textContent='▶ 开始';
+    timerShow.classList.remove('warn');
+    renderTimer(0);
+  };
+  function renderTimer(sec){
+    var m=Math.floor(sec/60), s=sec%60;
+    timerShow.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  }
+  function flash(){
+    timerShow.classList.add('flash-ring');
+    setTimeout(function(){ timerShow.classList.remove('flash-ring'); },1000);
+  }
+
+  /* ---------- 设置：语音 ---------- */
+  function renderSound(){
+    soundHint.textContent=sound?'🔊 语音播报：开启':'🔇 语音播报：关闭';
+    $('btnSound').textContent=sound?'🔊 声音：开':'🔇 声音：关';
+    $('btnSound').style.background=sound?'#e8f5ec':'#fbe9e9';
+    $('btnSound').style.color=sound?'#1fa855':'#e04040';
+    $('btnSound').style.border=sound?'1px solid #1fa855':'1px solid #e04040';
+  }
+  $('btnSound').onclick=function(){
+    sound=!sound; localStorage.setItem('cd_sound',sound?'1':'0'); renderSound();
+  };
+  $('btnTestVoice').onclick=function(){ buzz(120); speak('欢迎使用课堂点名'); };
+
+  /* ---------- 导航 ---------- */
+  var navis=document.querySelectorAll('.navi');
+  for(var n=0;n<navis.length;n++){
+    navis[n].onclick=function(){
+      var p=this.getAttribute('data-panel');
+      document.querySelectorAll('.panel').forEach(function(x){x.classList.remove('active');});
+      $('panel-'+p).classList.add('active');
+      document.querySelectorAll('.navi').forEach(function(x){x.classList.remove('active');});
+      this.classList.add('active');
+    };
+  }
+
+  /* ---------- 初始化 ---------- */
+  loadClasses(); seed(); renderClassSel(); resetPool();
+  renderStuList(); renderRank(); updatePickState(); applySize(); fillClsInput();
+  sound=localStorage.getItem('cd_sound')!=='0';
+  renderSound(); renderTimer(0); setTimer(5); renderMode();
+})();
+</script>
+</body>
+</html>
